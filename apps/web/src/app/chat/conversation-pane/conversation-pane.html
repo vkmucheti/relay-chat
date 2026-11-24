@@ -1,0 +1,261 @@
+<section class="conversation-pane">
+  <header class="conversation-header">
+    <a class="icon-button mobile-back" routerLink="/chats" aria-label="Back to chats">‹</a>
+    <span class="avatar" [attr.data-tone]="tone(id())">{{initials(name())}}</span>
+    <div class="conversation-title">
+      <h2>{{name()}}</h2>
+      <p [class.typing-label]="activity().includes('typing') || activity() === 'Typing…'">
+        {{activity()}}
+      </p>
+    </div>
+    @if (current(); as chat) { @if (chat.type === 'group') {<button
+      class="icon-button"
+      aria-label="Group details"
+      title="Group details"
+      (click)="groupDetails.open()"
+    >
+      ⋯</button
+    ><relay-group-details #groupDetails [conversation]="chat" />} }
+  </header>
+  @if (live.status() !== 'online') {
+  <div class="connection-banner mobile-connection" role="status">Reconnecting…</div>
+  }
+  <div class="message-surface">
+    @if (store.loadingHistory()) {
+    <div class="message-skeleton" aria-label="Loading messages"></div>
+    <div class="message-skeleton second" aria-hidden="true"></div>
+    } @if (store.loadingOlder()) {
+    <div class="earlier-status" role="status">Loading earlier messages…</div>
+    } @if (!rows().length && !store.loadingHistory()) {
+    <div class="first-message">
+      <span aria-hidden="true">✦</span>
+      <p>Say hello to start the conversation.</p>
+    </div>
+    }
+    <cdk-virtual-scroll-viewport
+      class="message-viewport"
+      [style.--relay-message-height.px]="rows().length * rowSize"
+      [itemSize]="rowSize"
+      [minBufferPx]="rowSize * 5"
+      [maxBufferPx]="rowSize * 10"
+      (scrolledIndexChange)="scrolled($event)"
+      aria-label="Messages"
+      tabindex="0"
+    >
+      <div
+        *cdkVirtualFor="let row of rows(); trackBy: trackRow"
+        class="message-row"
+        [class.date-row]="row.date"
+        [class.from-me]="row.message && isMine(row.message)"
+      >
+        @if (row.date) {
+        <span class="date-pill">{{row.date | date:'EEE, MMM d, y'}}</span>
+        } @else if (row.message; as message) {
+        <article
+          class="bubble"
+          [class.deleted]="message.deletedForEveryone"
+          [class.failed]="message.localStatus === 'failed'"
+        >
+          @if (current()?.type === 'group' && !isMine(message)) {<strong class="message-sender"
+            >{{sender(message)}}</strong
+          >} @if (message.replyTo && !message.deletedForEveryone) {
+          <div class="quoted">
+            {{selectedMessages().has(message.replyTo) ?
+            preview(selectedMessages().get(message.replyTo)) : 'Earlier message'}}
+          </div>
+          } @if (message.deletedForEveryone) {<span class="message-content">Message deleted</span>}
+          @else if (message.type === 'image') {
+          <button
+            class="image-preview"
+            type="button"
+            (click)="showImage(message.media?.key, imageDialog)"
+            [disabled]="!message.media"
+            aria-label="Open photo"
+          >
+            @if (imagePreview(message.media?.key); as url) {<img
+              [src]="url"
+              [alt]="message.media?.fileName || 'Photo attachment'"
+              referrerpolicy="no-referrer"
+            />} @else {<span>▧ &nbsp;Photo</span>}
+          </button>
+          } @else if (message.type === 'file') {
+          <button
+            class="file-link"
+            type="button"
+            [disabled]="!message.media"
+            (click)="download(message.media?.key)"
+          >
+            ↓ &nbsp;{{message.media?.fileName || 'Attachment'}}
+          </button>
+          } @else {
+          <span class="message-content">{{message.body}}</span>
+          }
+          <div class="message-meta">
+            <time>{{message.createdAt | date:'shortTime'}}</time>
+            @if (isMine(message)) { @let state = status(message);
+            <span
+              [class.read-tick]="state === 'Read'"
+              class="receipt-tick"
+              [attr.aria-label]="state"
+              [title]="state"
+              >{{state === 'Sent' ? '✓' : state === 'Read' || state === 'Delivered' ? '✓✓' : state
+              === 'Pending' ? '◷' : '!'}}</span
+            >
+            } @if (message.localStatus === 'failed') {<button
+              class="bare retry"
+              type="button"
+              (click)="store.retry(message)"
+            >
+              Retry</button
+            >}
+          </div>
+        </article>
+        @if (!message.localStatus) {<button
+          class="icon-button message-menu"
+          type="button"
+          (click)="showActions(message, actions)"
+          aria-label="Message actions"
+          title="Message actions"
+        >
+          ⋯</button
+        >} }
+      </div>
+    </cdk-virtual-scroll-viewport>
+  </div>
+  <footer class="composer-area">
+    @if (reply(); as quoted) {
+    <div class="reply-bar">
+      <div>
+        <strong>Replying to {{isMine(quoted) ? 'yourself' : sender(quoted)}}</strong
+        ><span>{{preview(quoted)}}</span>
+      </div>
+      <button
+        class="icon-button"
+        type="button"
+        (click)="reply.set(undefined)"
+        aria-label="Cancel reply"
+      >
+        ×
+      </button>
+    </div>
+    } @if (uploadProgress() !== undefined) {
+    <label class="upload-progress"
+      >Uploading attachment <progress max="100" [value]="uploadProgress() ?? 0"></progress
+    ></label>
+    } @if (emoji()) {
+    <div class="emoji-menu" aria-label="Emoji picker">
+      @for (item of emojis; track item) {<button
+        type="button"
+        class="icon-button"
+        (click)="appendEmoji(item, composer)"
+        [attr.aria-label]="'Insert ' + item"
+      >
+        {{item}}</button
+      >}
+    </div>
+    }
+    <div class="composer">
+      <button
+        class="icon-button attach-button"
+        type="button"
+        aria-label="Attach a file"
+        title="Attach a file"
+        (click)="attachmentInput.click()"
+        [disabled]="uploadProgress() !== undefined || live.status() !== 'online'"
+      >
+        ＋
+      </button>
+      <input
+        #attachmentInput
+        type="file"
+        [accept]="accept"
+        (change)="attachment(attachmentInput)"
+        hidden
+      />
+      <textarea
+        #composer
+        rows="1"
+        maxlength="4000"
+        placeholder="Write a message…"
+        aria-label="Write a message"
+        [ngModel]="draft()"
+        (ngModelChange)="changeDraft($event)"
+        (keydown)="keydown($event)"
+      ></textarea>
+      <button
+        class="icon-button emoji-button"
+        type="button"
+        (click)="emoji.set(!emoji())"
+        [attr.aria-expanded]="emoji()"
+        aria-label="Emoji picker"
+        title="Emoji picker"
+      >
+        ☺
+      </button>
+      <button
+        class="send-button"
+        type="button"
+        (click)="send()"
+        [disabled]="!draft().trim() || live.status() !== 'online'"
+        aria-label="Send message"
+        title="Send message"
+      >
+        ➤
+      </button>
+    </div>
+  </footer>
+</section>
+<dialog #actions aria-labelledby="message-action-title">
+  <header class="dialog-header">
+    <h2 id="message-action-title">Message</h2>
+    <button class="icon-button" type="button" aria-label="Close dialog" (click)="actions.close()">
+      ×
+    </button>
+  </header>
+  @if (actionMessage(); as message) { @if (!message.deletedForEveryone && message.type === 'text') {
+  <p class="full-message">{{message.body}}</p>
+  }
+  <div class="action-list">
+    @if (!message.deletedForEveryone) {<button
+      class="secondary"
+      type="button"
+      (click)="selectReply(message, actions, composer)"
+    >
+      Reply</button
+    >}
+    <button class="secondary" type="button" (click)="delete(message, 'me', actions)">
+      Delete for me
+    </button>
+    @if (isMine(message) && !message.deletedForEveryone) {<button
+      class="secondary danger"
+      type="button"
+      (click)="delete(message, 'everyone', actions)"
+    >
+      Delete for everyone</button
+    >}
+  </div>
+  }
+</dialog>
+<dialog
+  #imageDialog
+  class="image-dialog"
+  aria-label="Photo attachment"
+  (close)="activeImage.set(undefined)"
+>
+  <header class="dialog-header">
+    <h2>Photo</h2>
+    <button
+      class="icon-button"
+      type="button"
+      aria-label="Close photo"
+      (click)="imageDialog.close()"
+    >
+      ×
+    </button>
+  </header>
+  @if (activeImage(); as url) {<img
+    [src]="url"
+    alt="Photo shared in the conversation"
+    referrerpolicy="no-referrer"
+  />}
+</dialog>

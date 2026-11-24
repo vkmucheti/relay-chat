@@ -1,0 +1,9 @@
+{
+  "/api/**": { "target": "http://api:3000", "changeOrigin": false, "secure": false },
+  "/socket.io/**": {
+    "target": "http://api:3000",
+    "ws": true,
+    "changeOrigin": false,
+    "secure": false
+  }
+}

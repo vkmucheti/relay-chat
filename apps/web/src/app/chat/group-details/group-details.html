@@ -1,0 +1,71 @@
+<dialog #groupDialog aria-labelledby="group-title">
+  <header class="dialog-header">
+    <h2 id="group-title">Group details</h2>
+    <button
+      class="icon-button"
+      type="button"
+      aria-label="Close group details"
+      (click)="groupDialog.close()"
+    >
+      ×
+    </button>
+  </header>
+  @let chat = conversation(); @if (isAdmin()) {
+  <form class="group-rename" (ngSubmit)="groupAction('rename')">
+    <label
+      >Group name<input
+        name="name"
+        maxlength="72"
+        [ngModel]="groupName()"
+        (ngModelChange)="groupName.set($event)"
+    /></label>
+    <button class="secondary" type="submit" [disabled]="!groupName().trim() || groupBusy()">
+      Save
+    </button>
+  </form>
+  }
+  <div class="member-list">
+    @for (member of chat.members; track member.user.id) {
+    <div class="member-row">
+      <span class="avatar small" [attr.data-tone]="tone(member.user.id)"
+        >{{initials(member.user.displayName)}}</span
+      >
+      <span>{{member.user.displayName}} @if (member.role === 'admin') {<small>Admin</small>}</span>
+      @if (isAdmin() && member.user.id !== auth.user()?.id) {
+      <button
+        class="text-button danger"
+        type="button"
+        [disabled]="groupBusy()"
+        (click)="groupAction('remove', member.user.id)"
+        [attr.aria-label]="'Remove ' + member.user.displayName"
+      >
+        Remove
+      </button>
+      }
+    </div>
+    }
+  </div>
+  @if (isAdmin()) {
+  <label
+    >Add a member<input
+      [ngModel]="memberSearch()"
+      (ngModelChange)="findMembers($event)"
+      placeholder="Search by name or username"
+  /></label>
+  @for (user of memberResults(); track user.id) {<button
+    class="text-button"
+    type="button"
+    (click)="groupAction('add', user.id)"
+    [disabled]="groupBusy()"
+  >
+    Add {{user.displayName}}</button
+  >} }
+  <button
+    class="secondary danger leave-button"
+    type="button"
+    (click)="groupAction('leave')"
+    [disabled]="groupBusy()"
+  >
+    Leave group
+  </button>
+</dialog>

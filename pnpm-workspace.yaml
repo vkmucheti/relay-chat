@@ -1,0 +1,29 @@
+packages:
+  - apps/*
+  - packages/*
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - argon2
+  - esbuild
+  - lmdb
+  - msgpackr-extract
+  - unrs-resolver
+ignoredBuiltDependencies:
+  - '@nestjs/core'
+  - '@scarf/scarf'
+  - nx
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build
+overrides:
+  '@jest/reporters>glob': 14.0.2
+  'test-exclude>glob': 14.0.2
+  'glob@14.0.2>minimatch': 11.0.1
+  'jest-config>glob': 14.0.2
+  'test-exclude>minimatch': 11.0.1
+  'jest-runtime>glob': 14.0.2
+  '@oxc-parser/binding-wasm32-wasi@0.158.0>@emnapi/core': 2.0.0-beta.2
+  '@oxc-parser/binding-wasm32-wasi@0.158.0>@emnapi/runtime': 2.0.0-beta.2
+strictPeerDependencies: true
+patchedDependencies:
+  kafkajs@2.2.4: patches/kafkajs@2.2.4.patch

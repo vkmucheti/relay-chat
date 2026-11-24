@@ -1,0 +1,40 @@
+{
+  "name": "relay-chat",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": "^24.15.0 || ^26.0.0"
+  },
+  "scripts": {
+    "prepare": "node infra/scripts/hooks.mjs",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm --filter @relay/shared build && pnpm --parallel --filter @relay/api --filter @relay/web typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @relay/shared build && pnpm --filter @relay/api test && pnpm --filter @relay/web test",
+    "test:e2e": "pnpm --filter @relay/api test:e2e && playwright test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.4",
+    "@commitlint/config-conventional": "21.2.4",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.1",
+    "@types/jest": "30.0.0",
+    "@types/node": "26.6.6",
+    "eslint": "10.15.0",
+    "husky": "9.1.7",
+    "jest": "30.5.2",
+    "lint-staged": "17.6.2",
+    "prettier": "3.10.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.74.0"
+  },
+  "lint-staged": {
+    "*.{ts,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,scss,html,md,yml,yaml}": "prettier --write"
+  }
+}

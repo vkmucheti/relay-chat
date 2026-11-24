@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.angular/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+.DS_Store
+.pnpm-store/
+.relay-tls/
+.pnpm-store-v10/

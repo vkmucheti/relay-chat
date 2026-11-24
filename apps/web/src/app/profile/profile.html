@@ -1,0 +1,45 @@
+<main class="profile-page">
+  <a routerLink="/chats" class="back-link">‹ Back to chats</a>
+  <section class="profile-card">
+    @if (auth.user(); as me) {
+    <header class="profile-card-header">
+      <span class="avatar" [attr.data-tone]="tone(me.id)">{{ initials(me.displayName) }}</span>
+      <div>
+        <h1>My profile</h1>
+        <p>{{ '@' + me.username }} · {{ me.email }}</p>
+      </div>
+    </header>
+    }
+    <form (ngSubmit)="save()" #profile="ngForm">
+      <label
+        >Display name<input name="displayName" [(ngModel)]="displayName" maxlength="60" required
+      /></label>
+      <label
+        >About<textarea name="about" [(ngModel)]="about" maxlength="160" rows="3"></textarea>
+      </label>
+      <button class="primary" [disabled]="profile.invalid || busy()">Save changes</button>
+    </form>
+    <section class="profile-contacts">
+      <h2>Contacts</h2>
+      @for (contact of contacts(); track contact.id) {
+      <div class="member-row">
+        <span>{{ contact.alias || contact.user.displayName }}</span
+        ><button class="text-button danger" type="button" (click)="remove(contact)">Remove</button>
+      </div>
+      } @empty {
+      <p>No saved contacts.</p>
+      }
+      <form class="group-rename" (ngSubmit)="find()">
+        <label>Find a person<input name="query" [(ngModel)]="query" required /></label
+        ><button type="submit" class="secondary" [disabled]="!query.trim()">Search</button>
+      </form>
+      @for (user of results(); track user.id) {
+      <div class="member-row">
+        <span>{{ user.displayName }}</span
+        ><button class="text-button" type="button" (click)="add(user)">Add contact</button>
+      </div>
+      }
+    </section>
+    <button class="secondary danger" type="button" (click)="signOut()">Sign out</button>
+  </section>
+</main>

@@ -1,0 +1,204 @@
+<main class="chat-layout" [class.show-conversation]="activePath()">
+  <aside class="sidebar" aria-label="Conversations">
+    <header class="sidebar-brand">
+      <a class="wordmark" routerLink="/chats"
+        ><span class="brand-mark" aria-hidden="true">r</span>Relay</a
+      >
+      <button
+        type="button"
+        class="icon-button"
+        (click)="theme.toggle()"
+        [attr.aria-label]="theme.dark() ? 'Use light theme' : 'Use dark theme'"
+        [title]="theme.dark() ? 'Light theme' : 'Dark theme'"
+      >
+        {{ theme.dark() ? '☀' : '☾' }}
+      </button>
+    </header>
+    <div class="list-top">
+      <div class="list-title">
+        <h1>Chats</h1>
+        <button
+          type="button"
+          class="icon-button group-button"
+          (click)="open(newChat, 'group')"
+          aria-label="Create group"
+          title="Create group"
+        >
+          ♧
+        </button>
+        <button
+          type="button"
+          class="icon-button new-button"
+          (click)="open(newChat, 'direct')"
+          aria-label="New chat"
+          title="New chat"
+        >
+          +
+        </button>
+      </div>
+      <label class="search-field"
+        ><span aria-hidden="true">⌕</span
+        ><input
+          placeholder="Search people or chats"
+          aria-label="Search people or chats"
+          [ngModel]="query()"
+          (ngModelChange)="setQuery($event)"
+        />
+        @if (query()) {<button
+          class="bare"
+          type="button"
+          (click)="setQuery('')"
+          aria-label="Clear search"
+        >
+          ×</button
+        >}
+      </label>
+    </div>
+    @if (live.status() !== 'online') {
+    <div class="connection-banner" role="status">
+      ◌ &nbsp;{{live.status() === 'connecting' ? 'Connecting…' : 'Reconnecting…'}}
+    </div>
+    }
+    <nav class="chat-list" aria-label="Chat list">
+      @if (store.loadingConversations()) {
+      <div class="skeleton-row"></div>
+      <div class="skeleton-row"></div>
+      <div class="skeleton-row"></div>
+      } @else { @for (chat of filtered(); track chat.id) {
+      <a
+        class="chat-link"
+        [class.chosen]="store.active() === chat.id"
+        [attr.aria-current]="store.active() === chat.id ? 'page' : null"
+        [routerLink]="['/chats', chat.id]"
+      >
+        <span class="avatar" [attr.data-tone]="tone(chat.id)"
+          >{{ initials(name(chat)) }} @if (online(chat)) {<i
+            class="online-dot"
+            aria-label="Online"
+          ></i
+          >}</span
+        >
+        <span class="chat-link-text"
+          ><strong>{{name(chat)}}</strong><span>{{ preview(chat.lastMessage) }}</span></span
+        >
+        <span class="chat-link-meta">
+          @if (chat.lastMessage) {<time>{{chat.lastMessage.createdAt | date:'shortTime'}}</time>}
+          @if (chat.unreadCount) {<b [attr.aria-label]="chat.unreadCount + ' unread'"
+            >{{chat.unreadCount > 99 ? '99+' : chat.unreadCount}}</b
+          >}
+        </span>
+      </a>
+      } @empty { @if (!query()) {
+      <p class="no-chats">No conversations yet.</p>
+      } } @if (!query() && store.nextConversationCursor()) {<button
+        class="text-button load-more"
+        type="button"
+        (click)="store.refreshList(true)"
+      >
+        Load more chats</button
+      >} } @if (!modalVisible() && query().trim() && results().length) {
+      <h2 class="people-label">People</h2>
+      @for (user of results(); track user.id) {
+      <button class="chat-link people-link" type="button" (click)="begin(user)" [disabled]="busy()">
+        <span class="avatar" [attr.data-tone]="tone(user.id)">{{initials(user.displayName)}}</span>
+        <span class="chat-link-text"
+          ><strong>{{user.displayName}}</strong><span>{{'@' + user.username}}</span></span
+        >
+      </button>
+      } } @else if (!modalVisible() && query().trim() && !filtered().length) {
+      <p class="no-chats">No matching people or chats.</p>
+      }
+    </nav>
+    <footer class="sidebar-footer">
+      @if (auth.user(); as me) {
+      <a class="profile-link" routerLink="/profile">
+        <span class="avatar small" [attr.data-tone]="tone(me.id)"
+          >{{initials(me.displayName)}}</span
+        >
+        <span><strong>{{me.displayName}}</strong><small>My profile</small></span>
+        <span class="profile-chevron" aria-hidden="true">›</span>
+      </a>
+      }
+    </footer>
+  </aside>
+  <section class="chat-detail" aria-label="Conversation">
+    <router-outlet />
+    @if (!activePath()) {
+    <div class="empty-chat">
+      <div class="empty-art" aria-hidden="true">
+        <span class="empty-ring"></span><span class="brand-mark">r</span>
+      </div>
+      <h2>Pick up a conversation</h2>
+      <p>Select a chat or start one with someone new.</p>
+      <button type="button" class="secondary" (click)="open(newChat, 'direct')">
+        Start a chat
+      </button>
+    </div>
+    }
+  </section>
+</main>
+
+<dialog #newChat aria-labelledby="new-chat-title" (close)="closeDialog()">
+  <header class="dialog-header">
+    <h2 id="new-chat-title">{{ dialog() === 'group' ? 'Create a group' : 'Start a chat' }}</h2>
+    <button class="icon-button" type="button" (click)="newChat.close()" aria-label="Close dialog">
+      ×
+    </button>
+  </header>
+  @if (dialog() === 'group') {
+  <label
+    >Group name<input
+      [ngModel]="groupName()"
+      (ngModelChange)="groupName.set($event)"
+      maxlength="72"
+      placeholder="e.g. Weekend plans"
+  /></label>
+  @if (selected().length) {
+  <div class="selection">
+    @for (user of selected(); track user.id) {
+    <button
+      type="button"
+      class="chip"
+      (click)="toggle(user)"
+      [attr.aria-label]="'Remove ' + user.displayName"
+    >
+      {{user.displayName}} ×
+    </button>
+    }
+  </div>
+  } }
+  <label class="search-field dialog-search"
+    ><span aria-hidden="true">⌕</span
+    ><input
+      autofocus
+      placeholder="Search by name or username"
+      aria-label="Find people"
+      [ngModel]="query()"
+      (ngModelChange)="setQuery($event)"
+  /></label>
+  <div class="dialog-people">
+    @for (user of results(); track user.id) {
+    <button
+      class="chat-link people-link"
+      type="button"
+      (click)="dialog() === 'group' ? toggle(user) : begin(user, newChat)"
+      [disabled]="busy()"
+    >
+      <span class="avatar small" [attr.data-tone]="tone(user.id)"
+        >{{initials(user.displayName)}}</span
+      >
+      <span class="chat-link-text"
+        ><strong>{{user.displayName}}</strong><span>{{'@' + user.username}}</span></span
+      >
+    </button>
+    }
+  </div>
+  @if (dialog() === 'group') {<button
+    class="primary"
+    type="button"
+    (click)="create(newChat)"
+    [disabled]="!groupName().trim() || !selected().length || busy()"
+  >
+    Create group</button
+  >}
+</dialog>

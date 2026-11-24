@@ -1,0 +1,118 @@
+name: relay-dev
+
+x-app: &app
+  build: { context: ../.., dockerfile: infra/docker/api.Dockerfile, target: dev }
+  env_file: [../../.env]
+  init: true
+  volumes:
+    - ../../apps/api/src:/workspace/apps/api/src:ro
+    - ../../packages/shared/src:/workspace/packages/shared/src:ro
+  depends_on:
+    mongo-init: { condition: service_completed_successfully }
+    redis: { condition: service_healthy }
+    kafka-init: { condition: service_completed_successfully }
+    minio-init: { condition: service_completed_successfully }
+  healthcheck:
+    test:
+      [
+        CMD,
+        node,
+        -e,
+        'fetch("http://localhost:3000/health/ready").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))',
+      ]
+    interval: 5s
+    timeout: 4s
+    retries: 30
+    start_period: 10s
+
+services:
+  mongo: { extends: { file: services.yml, service: mongo } }
+  mongo-init: { extends: { file: services.yml, service: mongo-init } }
+  redis: { extends: { file: services.yml, service: redis } }
+  kafka: { extends: { file: services.yml, service: kafka } }
+  kafka-init: { extends: { file: services.yml, service: kafka-init } }
+  minio:
+    extends: { file: services.yml, service: minio }
+    ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']
+  minio-init: { extends: { file: services.yml, service: minio-init } }
+  api:
+    <<: *app
+    environment: { APP_ROLE: gateway, PORT: '3000' }
+    ports: ['127.0.0.1:${API_PORT:-3000}:3000']
+  api-e2e:
+    <<: *app
+    profiles: [e2e]
+    command: [pnpm, --filter, '@relay/api', start]
+    volumes: []
+    environment: { APP_ROLE: gateway, PORT: '3000' }
+    ports: ['127.0.0.1:${E2E_API_PORT:-3001}:3000']
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_started }
+      worker: { condition: service_healthy }
+  worker:
+    <<: *app
+    environment: { APP_ROLE: worker, PORT: '3000' }
+  web:
+    build: { context: ../.., dockerfile: infra/docker/web.Dockerfile, target: dev }
+    init: true
+    volumes:
+      - ../../apps/web/src:/workspace/apps/web/src:ro
+      - ../../packages/shared/src:/workspace/packages/shared/src:ro
+    ports: ['127.0.0.1:${WEB_PORT:-4200}:4200']
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          'fetch("http://localhost:4200").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    environment:
+      KAFKA_CLUSTERS_0_NAME: relay-dev
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports: ['127.0.0.1:8080:8080']
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    environment:
+      ME_CONFIG_MONGODB_URL: ${MONGO_URL:-mongodb://mongo:27017/relay?replicaSet=rs0}
+      ME_CONFIG_BASICAUTH: 'false'
+    ports: ['127.0.0.1:8081:8081']
+    depends_on:
+      mongo-init: { condition: service_completed_successfully }
+  redis-insight:
+    image: redis/redisinsight:2.70
+    ports: ['127.0.0.1:5540:5540']
+    depends_on:
+      redis: { condition: service_healthy }
+  prometheus:
+    image: prom/prometheus:v3.9.1
+    command: ['--config.file=/etc/prometheus/prometheus.yml']
+    volumes: [../../infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: ['127.0.0.1:9090:9090']
+  grafana:
+    image: grafana/grafana:12.3.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-relay-local-grafana}
+    volumes:
+      - ../../infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../../infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports: ['127.0.0.1:${GRAFANA_PORT:-3002}:3000']
+
+volumes:
+  mongo-data:
+  redis-data:
+  kafka-data:
+  minio-data:
+  grafana-data:

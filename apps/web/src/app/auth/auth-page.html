@@ -1,0 +1,94 @@
+<main class="access-layout">
+  <section class="access-aside">
+    <a class="wordmark" routerLink="/chats"
+      ><span class="brand-mark" aria-hidden="true">r</span>Relay</a
+    >
+    <div class="access-art" aria-hidden="true">
+      <span class="art-ring"></span><span class="art-ring art-ring-inner"></span>
+      <span class="art-message art-message-one"><span></span><span></span></span>
+      <span class="art-message art-message-two"><span></span><span></span></span>
+      <span class="art-spark">✦</span>
+    </div>
+    <div class="access-intro">
+      <p>Relay Chat</p>
+      <h2>A place to keep in touch.</h2>
+    </div>
+  </section>
+  <section class="access-panel">
+    <button
+      class="icon-button access-theme"
+      type="button"
+      (click)="theme.toggle()"
+      [attr.aria-label]="theme.dark() ? 'Use light theme' : 'Use dark theme'"
+    >
+      {{ theme.dark() ? '☀' : '☾' }}
+    </button>
+    <div class="access-form">
+      <span class="brand-mark mobile-mark" aria-hidden="true">r</span>
+      <h1>{{ register ? 'Create your account' : 'Welcome back' }}</h1>
+      <p>
+        {{ register ? 'Set up your profile to start chatting.' : 'Sign in to pick up your
+        conversations.' }}
+      </p>
+      <form (ngSubmit)="submit()" #form="ngForm">
+        @if (register) {
+        <label
+          >Display name<input
+            name="displayName"
+            [(ngModel)]="displayName"
+            maxlength="60"
+            required
+            autocomplete="name"
+        /></label>
+        <label
+          >Username<input
+            name="username"
+            [(ngModel)]="username"
+            required
+            pattern="[A-Za-z0-9_]{3,32}"
+            autocomplete="username"
+        /></label>
+        <label
+          >Email<input
+            type="email"
+            name="email"
+            [(ngModel)]="email"
+            required
+            email
+            autocomplete="email"
+        /></label>
+        } @else {
+        <label
+          >Username or email<input
+            name="login"
+            [(ngModel)]="login"
+            required
+            autocomplete="username"
+        /></label>
+        }
+        <label
+          >Password<input
+            type="password"
+            name="password"
+            [(ngModel)]="password"
+            required
+            [minlength]="register ? 12 : 1"
+            maxlength="128"
+            [autocomplete]="register ? 'new-password' : 'current-password'"
+        /></label>
+        @if (register) {<small>Use at least 12 characters.</small>} @if (error()) {
+        <p class="error-text" role="alert">{{error()}}</p>
+        }
+        <button class="primary" type="submit" [disabled]="form.invalid || busy()">
+          {{ busy() ? 'Please wait…' : register ? 'Create account' : 'Sign in' }}
+        </button>
+      </form>
+      <p class="access-switch">
+        {{ register ? 'Already have an account?' : 'New to Relay?' }}
+        <a [routerLink]="register ? '/login' : '/register'"
+          >{{ register ? 'Sign in' : 'Create an account' }}</a
+        >
+      </p>
+    </div>
+  </section>
+</main>
